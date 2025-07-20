@@ -1,0 +1,168 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// User and Role Management
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  password      String
+  phone         String?
+  roleId        String
+  role          Role      @relation(fields: [roleId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  bookings      Booking[]
+  reviews       Review[]
+  affiliate     Affiliate?
+}
+
+model Role {
+  id            String    @id @default(uuid())
+  name          String    @unique // e.g., 'Client', 'GolfCourse', 'Promoter', 'SuperAdmin'
+  description   String?
+  users         User[]
+}
+
+// Golf Course Management
+model GolfCourse {
+  id            String      @id @default(uuid())
+  name          String
+  location      String
+  description   String?
+  holes         Int
+  rating        Float?
+  pricePerRound Float
+  contactEmail  String?
+  contactPhone  String?
+  imageUrl      String?     // Imagen principal/portada
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  bookings      Booking[]
+  reviews       Review[]
+  availability  Availability[]
+  galleryImages GolfCourseImage[] // Galería de imágenes
+}
+
+// Golf Course Gallery Images
+model GolfCourseImage {
+  id            String      @id @default(uuid())
+  golfCourseId  String
+  golfCourse    GolfCourse  @relation(fields: [golfCourseId], references: [id], onDelete: Cascade)
+  imageUrl      String
+  caption       String?     // Descripción opcional de la imagen
+  displayOrder  Int         @default(0) // Orden de visualización en la galería
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([golfCourseId, displayOrder])
+}
+
+// Booking Management
+model Booking {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  golfCourseId  String
+  golfCourse    GolfCourse @relation(fields: [golfCourseId], references: [id])
+  bookingDate   DateTime
+  teeTime       DateTime
+  numberOfPlayers Int
+  totalPrice    Float
+  status        String    @default("pending") // e.g., 'pending', 'confirmed', 'cancelled', 'completed'
+  discountCodeId String? // Optional: for discount code usage
+  discountCode  DiscountCode? @relation(fields: [discountCodeId], references: [id])
+  commission    Commission? @relation(name: "BookingCommission")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Affiliate (Promoter) Management
+model Affiliate {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  commissionRate Float
+  referralCode  String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  commissions   Commission[]
+}
+
+// Commission Management
+model Commission {
+  id            String    @id @default(uuid())
+  affiliateId   String
+  affiliate     Affiliate @relation(fields: [affiliateId], references: [id])
+  bookingId     String    @unique
+  booking       Booking   @relation(fields: [bookingId], references: [id], name: "BookingCommission")
+  amount        Float
+  status        String    @default("pending") // e.g., 'pending', 'paid'
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Discount Code Management
+model DiscountCode {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  discountType  String    // e.g., 'percentage', 'fixed_amount'
+  value         Float
+  minBookingValue Float?
+  maxUses       Int?
+  currentUses   Int       @default(0)
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  bookings      Booking[]
+}
+
+// Review Management
+model Review {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  golfCourseId  String
+  golfCourse    GolfCourse @relation(fields: [golfCourseId], references: [id])
+  rating        Int
+  comment       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  reviewImages  ReviewImage[] // Imágenes subidas por el usuario en la reseña
+}
+
+// Review Images uploaded by users
+model ReviewImage {
+  id            String    @id @default(uuid())
+  reviewId      String
+  review        Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  imageUrl      String
+  caption       String?   // Descripción opcional de la imagen
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([reviewId])
+}
+
+// Availability Management
+model Availability {
+  id            String    @id @default(uuid())
+  golfCourseId  String
+  golfCourse    GolfCourse @relation(fields: [golfCourseId], references: [id])
+  date          DateTime
+  startTime     DateTime
+  endTime       DateTime
+  availableSlots Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([golfCourseId, date, startTime])
+}
+
+
